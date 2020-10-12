@@ -11,31 +11,80 @@ import chart_studio
 import plotly.offline as ptly
 import plotly.graph_objs as go
 
+# 打开摄像头，获取模板匹配的结果，得到frame.jpg (要准备模板csmoban.jpg)
+def video_show(video,ci):
+    i = 1
+    while True:
+        ret1,frame = video.read()
+        if not ret1:
+            print("视频获取失败！")
+            break
+        framegray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+
+        # 使用opencv读取图像，直接返回numpy.ndarray 对象，通道顺序为BGR
+        template = cv2.imread('csmoban.jpg')
+        # print(template.shape)
+        # exit()
+        shape = template.shape
+        theight , twidth = shape[0] , shape[1]
+        # 模板匹配
+        result = cv2.matchTemplate(frame,template,cv2.TM_SQDIFF_NORMED)
+        cv2.normalize(result,result,0,1,cv2.NORM_MINMAX,-1)
+        min_val,max_val,min_loc,max_loc = cv2.minMaxLoc(result)
+
+        # # min_loc：矩形定点
+        # # (min_loc[0]+twidth,min_loc[1]+theight)：矩形的宽高
+        # # (0,0,225)：矩形的边框颜色；2：矩形边框宽度
+        # 画识别框
+        cv2.rectangle(frame ,min_loc ,(min_loc[0] + twidth ,min_loc[1] + theight) ,(255 ,0 ,0) ,2)
+        # 展示视频数据
+        cv2.imshow("Video_show",frame)
+
+        choose_data = framegray[min_loc[1]: (min_loc[1] + theight),min_loc[0]:(min_loc[0] + twidth )]
+        # choose_datafan = cv2.threshold(choose_data ,110,255 ,cv2.THRESH_BINARY_INV)[1]
+        cv2.imshow("choose_video",choose_data)
+        if i%ci == 0 :
+            cv2.imwrite(f'frame.jpg',choose_data)
+            print(f'照片已保存--frame.jpg--：')
+            break
+        i += 1
+        if cv2.waitKey(1) & 0xff == ord("e"):
+            break
+    video.release()
+    cv2.destroyAllWindows()
+
 # 获取指针角度值
 def get_pointer_rad(img):
     shape = img.shape
-    c_y, c_x, depth = int(shape[0] / 2), int(shape[1] / 2), shape[2]    # h,w,cute
-    x1=c_x+c_x*1.5  # 指针长度--宽 2.5倍
+    # image.shape[0], 图片垂直尺寸 // image.shape[1], 图片水平尺寸 // image.shape[2], 图片通道数
+    # 图片中心点的坐标 c_y --垂直 c_x --水平
+    c_y, c_x, depth = int(shape[0] / 2), int(shape[1] / 2), shape[2]
+    # 指针的长度
+    l = 1.5*c_x
     src = img.copy()
-    freq_list = []
+    list = []
     # 进行匹配，返回匹配度最大的指针所在地方的相关度和角度值
     for i in range(361):        # 算法
-        x = (x1 - c_x) * math.cos(i * math.pi / 180) + c_x
-        y = (x1 - c_x) * math.sin(i * math.pi / 180) + c_y
+        x = l * math.cos(i * math.pi / 180) + c_x
+        y = l * math.sin(i * math.pi / 180) + c_y
         temp = src.copy()   # 备份
-        cv2.line(temp, (c_x, c_y), (int(x), int(y)), (0, 255, 0), thickness=1)  # 在temp上画线
+        cv2.line(temp, (c_x, c_y), (int(x), int(y)), (0, 255, 0), thickness=1)  # 在temp上画绿线
         t1 = img.copy()
+        # temp中G通道的255的部分
         t1[temp[:, :, 1] == 255] = 255
+        # temp中G通道的255的部分
         c = img[temp[:, :, 1] == 255]
         points = c[c == 0]
-        freq_list.append((len(points), i))
+        list.append((len(points), i))
         # 可以展示匹配过程
         # cv2.imshow('d', temp)
         # cv2.imshow('d1', t1)
         # 如果要求固定检测时间不要太快，可以在这里调慢
         cv2.waitKey(1)
     cv2.destroyAllWindows()
-    return max(freq_list, key=lambda x: x[0])
+    # max(一维坐标)
+    print(max(list,key=lambda x:x[1]))
+    return max(list, key=lambda x: x[0])
 
 # 将图片进行不同的阈值处理
 def getthr(imgc):
@@ -236,43 +285,6 @@ def get_shishi(cishu,pingjun):
         # else :
         #     continue
 
-# 打开摄像头，获取模板匹配的结果
-def video_show(video,ci):
-    i = 1
-    while True:
-        ret1,frame = video.read()
-        if not ret1:
-            print("视频获取失败！")
-            break
-        framegray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
-
-        template = cv2.imread('csmoban.jpg')
-        # print(template.shape)
-        # exit()
-        shape = template.shape
-        theight , twidth = shape[0] , shape[1]
-        result = cv2.matchTemplate(frame,template,cv2.TM_SQDIFF_NORMED)
-        cv2.normalize(result,result,0,1,cv2.NORM_MINMAX,-1)
-        min_val,max_val,min_loc,max_loc = cv2.minMaxLoc(result)
-
-        # # min_loc：矩形定点
-        # # (min_loc[0]+twidth,min_loc[1]+theight)：矩形的宽高
-        # # (0,0,225)：矩形的边框颜色；2：矩形边框宽度
-        cv2.rectangle(frame ,min_loc ,(min_loc[0] + twidth ,min_loc[1] + theight) ,(255 ,0 ,0) ,2)
-        cv2.imshow("Video_show",frame)
-
-        choose_data = framegray[min_loc[1]: (min_loc[1] + theight),min_loc[0]:(min_loc[0] + twidth )]
-        # choose_datafan = cv2.threshold(choose_data ,110,255 ,cv2.THRESH_BINARY_INV)[1]
-        cv2.imshow("choose_video",choose_data)
-        if i%ci == 0 :
-            cv2.imwrite(f'frame.jpg',choose_data)
-            print(f'照片已保存--frame.jpg--：')
-            break
-        i += 1
-        if cv2.waitKey(1) & 0xff == ord("e"):
-            break
-    video.release()
-    cv2.destroyAllWindows()
 
 if __name__ == '__main__' :
     cishu = 0  # 0 - 一直测
