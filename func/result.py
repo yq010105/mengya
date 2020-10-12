@@ -63,18 +63,34 @@ def get_pointer_rad(img):
     l = 1.5*c_x
     src = img.copy()
     list = []
-    # 进行匹配，返回匹配度最大的指针所在地方的相关度和角度值
+    # 指针画圆形，通过在
     for i in range(361):        # 算法
         x = l * math.cos(i * math.pi / 180) + c_x
         y = l * math.sin(i * math.pi / 180) + c_y
         temp = src.copy()   # 备份
         cv2.line(temp, (c_x, c_y), (int(x), int(y)), (0, 255, 0), thickness=1)  # 在temp上画绿线
-        t1 = img.copy()
+
+        # t1 = img.copy()
         # temp中G通道的255的部分
-        t1[temp[:, :, 1] == 255] = 255
-        # temp中G通道的255的部分
+        # t1[temp[:, :, 1] == 255] = 255
+
+        # temp[:,:,1] 就是temp的G通道分量 temp[:,:,:1] == 255 ，列表数据 ，返回 列表中全是01
+        # img三维坐标的
         c = img[temp[:, :, 1] == 255]
+        # print(img[[[0]]])
+        # exit()
+        print(img)
+        print(temp[:,:,:1])
+        print(temp[:,:,:1]==255)
+        print(c)
         points = c[c == 0]
+        print(c==0)
+        print(points)
+        print(len(points))
+        exit()
+
+        cv2.imshow('temp',temp)
+        # point的长度
         list.append((len(points), i))
         # 可以展示匹配过程
         # cv2.imshow('d', temp)
@@ -82,10 +98,10 @@ def get_pointer_rad(img):
         # 如果要求固定检测时间不要太快，可以在这里调慢
         cv2.waitKey(1)
     cv2.destroyAllWindows()
-    # max(一维坐标)
-    print(max(list,key=lambda x:x[1]))
+    # 返回一维坐标(points的长度)为最大值时的坐标位置 即为(len,角度)
     return max(list, key=lambda x: x[0])
 
+# 有待优化 ，取出一个标准的阈值
 # 将图片进行不同的阈值处理
 def getthr(imgc):
     # 每次以不同的阈值来进行图片阈值化
@@ -94,7 +110,6 @@ def getthr(imgc):
     max = get_pointer_rad(imgfan)
     thr = max[1]
     return thr
-
 # 根据不同的阈值处理结果，得到平均值，如果h为1，则直接以阈值80处理
 def get_averg(imgc,h):
     tol = 0
