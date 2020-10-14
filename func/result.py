@@ -7,11 +7,11 @@ import time
 import os
 import matplotlib.pyplot as plt
 # 另一个可视化轮子
-import chart_studio
+# import chart_studio
 import plotly.offline as ptly
 import plotly.graph_objs as go
 
-# 打开摄像头，获取模板匹配的结果，得到frame.jpg (要准备模板csmoban.jpg)
+# 打开摄像头，获取模板匹配的结果，得到frame.jpg (要准备模板csmoban.jpg/png)
 def video_show(video,ci):
     i = 1
     while True:
@@ -23,8 +23,8 @@ def video_show(video,ci):
 
         # 使用opencv读取图像，直接返回numpy.ndarray 对象，通道顺序为BGR
         template = cv2.imread('csmoban.jpg')
-        # print(template.shape)
-        # exit()
+        # template = cv2.imread('csmoban.png')
+
         shape = template.shape
         theight , twidth = shape[0] , shape[1]
         # 模板匹配
@@ -35,14 +35,24 @@ def video_show(video,ci):
         # # min_loc：矩形定点
         # # (min_loc[0]+twidth,min_loc[1]+theight)：矩形的宽高
         # # (0,0,225)：矩形的边框颜色；2：矩形边框宽度
+
+
         # 画识别框
         cv2.rectangle(frame ,min_loc ,(min_loc[0] + twidth ,min_loc[1] + theight) ,(255 ,0 ,0) ,2)
+
+
         # 展示视频数据
         cv2.imshow("Video_show",frame)
 
         choose_data = framegray[min_loc[1]: (min_loc[1] + theight),min_loc[0]:(min_loc[0] + twidth )]
+
+        # 获得模板
+        # frameee = frame[min_loc[1]: (min_loc[1] + theight),min_loc[0]:(min_loc[0] + twidth )]
+        # cv2.imshow('framee',frameee)
+        # cv2.imwrite('framee.jpg',frameee)
         # choose_datafan = cv2.threshold(choose_data ,110,255 ,cv2.THRESH_BINARY_INV)[1]
-        cv2.imshow("choose_video",choose_data)
+
+        cv2.imshow("result",choose_data)
         if i%ci == 0 :
             cv2.imwrite(f'frame.jpg',choose_data)
             print(f'照片已保存--frame.jpg--：')
@@ -71,34 +81,20 @@ def get_pointer_rad(img):
         cv2.line(temp, (c_x, c_y), (int(x), int(y)), (0, 255, 0), thickness=1)  # 在temp上画绿线
 
         # t1 = img.copy()
-        # temp中G通道的255的部分
+        # temp中G通道的255的部分在t1中也赋值为255
         # t1[temp[:, :, 1] == 255] = 255
 
-        # temp[:,:,1] 就是temp的G通道分量 temp[:,:,:1] == 255 ，列表数据 ，返回 列表中全是01
-        # img三维坐标的
+        # temp[:,:,1] 就是temp的G通道分量 temp[:,:,:1] == 255 ，为布尔型数据
         c = img[temp[:, :, 1] == 255]
-        # print(img[[[0]]])
-        # exit()
-        print(img)
-        print(temp[:,:,:1])
-        print(temp[:,:,:1]==255)
-        print(c)
-        points = c[c == 0]
-        print(c==0)
-        print(points)
-        print(len(points))
-        exit()
-
+        p = c[c == 0]
         cv2.imshow('temp',temp)
-        # point的长度
-        list.append((len(points), i))
-        # 可以展示匹配过程
-        # cv2.imshow('d', temp)
-        # cv2.imshow('d1', t1)
+        # point的长度代表匹配程度
+        list.append((len(p), i))
         # 如果要求固定检测时间不要太快，可以在这里调慢
         cv2.waitKey(1)
     cv2.destroyAllWindows()
     # 返回一维坐标(points的长度)为最大值时的坐标位置 即为(len,角度)
+    # print(list)
     return max(list, key=lambda x: x[0])
 
 # 有待优化 ，取出一个标准的阈值
@@ -106,11 +102,13 @@ def get_pointer_rad(img):
 def getthr(imgc):
     # 每次以不同的阈值来进行图片阈值化
     thres = np.random.randint(40,100)   # 随机数范围
+    print(thres)
     imgfan = cv2.threshold(imgc, thres, 255, cv2.THRESH_BINARY)[1]
+    cv2.imshow("img",imgfan)
     max = get_pointer_rad(imgfan)
     thr = max[1]
     return thr
-# 根据不同的阈值处理结果，得到平均值，如果h为1，则直接以阈值80处理
+# 根据不同的阈值处理结果，得到平均值，如果h为1，则直接以固定阈值（80）处理，先用平均来测试哪个阈值最好，再用那一个
 def get_averg(imgc,h):
     tol = 0
     h = int(h)          # 统计次数
@@ -120,7 +118,7 @@ def get_averg(imgc,h):
             tol = tol + thr
             # debug 看看角度是否正确统计
             # print(f'第{i+1}次的角度:{thr}')
-            print(i+1,end='、')
+            print(i+1,end='\n')
         averg = tol / h
     else :
         imgfan = cv2.threshold(imgc,80,255,cv2.THRESH_BINARY)[1]
@@ -145,7 +143,7 @@ def save_xlsx(thr,cdu,timed):
 
     ws = wb.active
     ws['A1'] = '指针角度'
-    ws['B1'] = '转换角度'
+    ws['B1'] = '温度'
     ws['C1'] = '测试时间'
 
     maxrow = sheet.max_row + 1
@@ -169,7 +167,7 @@ def del_xlsx():
 
     ws = wb.active
     ws['A1'] = '指针角度'
-    ws['B1'] = '转换角度'
+    ws['B1'] = '温度'
     ws['C1'] = '测试时间'
     wb.save('ssdata.xlsx')
 
@@ -198,7 +196,7 @@ def get_cts():
     return cdu,timed
 
 # 根据读取的以前excel数据生成可视化图形,并保存新的数据
-def get_shishi(cishu,pingjun):
+def get_shishi(pingjun):
     # img = cv2.imread('./img/clock_re.png')
     # imgh = img[0:165,6:171]
 
@@ -212,15 +210,33 @@ def get_shishi(cishu,pingjun):
         pd = 1
         imgh = cv2.imread('frame.jpg')
         thr = get_averg(imgh,pingjun)
-        if thr > 0 and thr <= 45:
-            cdu = thr / 2.25 + 100
-            pd = 1
-        elif thr >= 135 and thr <= 360:
-            cdu = (thr - 135) / 2.25
-            pd = 1
-        else:
-            cdu = '测试故障'
+        thr = thr - 180
+        print(thr)
+        # 实物算法
+        if thr > 0 and thr <= 60:
+            fdu =  (5/3) * thr + 450
+        elif thr >= 120 and thr < 360:
+            fdu =  (5/3) * thr - 150
+        else :
+            fdu = 0
             pd = 0
+
+        if fdu == 0 :
+            cdu = 'error'
+        else :
+            cdu = (fdu - 32) * 5 /9
+        print(cdu)
+
+        # 实验室表算法
+        # if thr > 0 and thr <= 45:
+        #     cdu = thr / 2.25 + 100
+        #     pd = 1
+        # elif thr >= 135 and thr <= 360:
+        #     cdu = (thr - 135) / 2.25
+        #     pd = 1
+        # else:
+        #     cdu = '测试故障'
+        #     pd = 0
         cdus.append(str(cdu))
         timed = time.strftime("%H:%M:%S", time.localtime())
         timeds.append(timed)
@@ -301,13 +317,3 @@ def get_shishi(cishu,pingjun):
         #     continue
 
 
-if __name__ == '__main__' :
-    cishu = 0  # 0 - 一直测
-    # pingjun = int(input('请输入多少组算一次平均数--建议2组--:'))
-    pingjun = 5
-    ci = 100
-    # ci = int(input('请输入多少时间间隔测照片--100大概3.638s左右--：'))
-    while True:
-        video = cv2.VideoCapture(0)
-        video_show(video ,ci)
-        get_shishi(cishu ,pingjun)

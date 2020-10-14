@@ -3,6 +3,7 @@ from PyQt5 import QtCore,QtWidgets,QtGui
 from func import clock as cl
 # from func import qt_thread as qth
 import result_frame as rf
+import result_data as rd
 
 # 打开时的提示
 def tipclock1(w):
