@@ -20,38 +20,24 @@ def video_show(video,ci):
             print("视频获取失败！")
             break
         framegray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
-
         # 使用opencv读取图像，直接返回numpy.ndarray 对象，通道顺序为BGR
+        # 模板格式可以为jpg和png
         template = cv2.imread('csmoban.jpg')
         # template = cv2.imread('csmoban.png')
-
         shape = template.shape
         theight , twidth = shape[0] , shape[1]
         # 模板匹配
         result = cv2.matchTemplate(frame,template,cv2.TM_SQDIFF_NORMED)
         cv2.normalize(result,result,0,1,cv2.NORM_MINMAX,-1)
         min_val,max_val,min_loc,max_loc = cv2.minMaxLoc(result)
-
-        # # min_loc：矩形定点
-        # # (min_loc[0]+twidth,min_loc[1]+theight)：矩形的宽高
-        # # (0,0,225)：矩形的边框颜色；2：矩形边框宽度
-
-
+        # # min_loc：矩形定点 (min_loc[0]+twidth,min_loc[1]+theight)：矩形的宽高 (0,0,225)：矩形的边框颜色；2：矩形边框宽度
         # 画识别框
         cv2.rectangle(frame ,min_loc ,(min_loc[0] + twidth ,min_loc[1] + theight) ,(255 ,0 ,0) ,2)
-
-
         # 展示视频数据
         cv2.imshow("Video_show",frame)
-
         choose_data = framegray[min_loc[1]: (min_loc[1] + theight),min_loc[0]:(min_loc[0] + twidth )]
-
+        # choose_data = frame[min_loc[1]: (min_loc[1] + theight),min_loc[0]:(min_loc[0] + twidth )]
         # 获得模板
-        # frameee = frame[min_loc[1]: (min_loc[1] + theight),min_loc[0]:(min_loc[0] + twidth )]
-        # cv2.imshow('framee',frameee)
-        # cv2.imwrite('framee.jpg',frameee)
-        # choose_datafan = cv2.threshold(choose_data ,110,255 ,cv2.THRESH_BINARY_INV)[1]
-
         cv2.imshow("result",choose_data)
         if i%ci == 0 :
             cv2.imwrite(f'frame.jpg',choose_data)
@@ -79,11 +65,6 @@ def get_pointer_rad(img):
         y = l * math.sin(i * math.pi / 180) + c_y
         temp = src.copy()   # 备份
         cv2.line(temp, (c_x, c_y), (int(x), int(y)), (0, 255, 0), thickness=1)  # 在temp上画绿线
-
-        # t1 = img.copy()
-        # temp中G通道的255的部分在t1中也赋值为255
-        # t1[temp[:, :, 1] == 255] = 255
-
         # temp[:,:,1] 就是temp的G通道分量 temp[:,:,:1] == 255 ，为布尔型数据
         c = img[temp[:, :, 1] == 255]
         p = c[c == 0]
@@ -97,8 +78,7 @@ def get_pointer_rad(img):
     # print(list)
     return max(list, key=lambda x: x[0])
 
-# 有待优化 ，取出一个标准的阈值
-# 将图片进行不同的阈值处理
+# 将图片进行不同的阈值处理,以获得最好的阈值
 def getthr(imgc):
     # 每次以不同的阈值来进行图片阈值化
     thres = np.random.randint(40,100)   # 随机数范围
@@ -108,7 +88,8 @@ def getthr(imgc):
     max = get_pointer_rad(imgfan)
     thr = max[1]
     return thr
-# 根据不同的阈值处理结果，得到平均值，如果h为1，则直接以固定阈值（80）处理，先用平均来测试哪个阈值最好，再用那一个
+# 如果h 不等于1 ，则根据不同的阈值处理结果，得到平均值
+# 如果h 等于1，则直接以固定阈值（80）处理，先用平均来测试哪个阈值最好，再用处理的最好的那一个
 def get_averg(imgc,h):
     tol = 0
     h = int(h)          # 统计次数
@@ -116,13 +97,10 @@ def get_averg(imgc,h):
         for i in range(h):
             thr = getthr(imgc)
             tol = tol + thr
-            # debug 看看角度是否正确统计
-            # print(f'第{i+1}次的角度:{thr}')
             print(i+1,end='\n')
         averg = tol / h
     else :
         imgfan = cv2.threshold(imgc,80,255,cv2.THRESH_BINARY)[1]
-        # cv2.imshow("imgfan",imgfan)
         max = get_pointer_rad(imgfan)
         thr = max[1]
         averg = thr
@@ -197,9 +175,6 @@ def get_cts():
 
 # 根据读取的以前excel数据生成可视化图形,并保存新的数据
 def get_shishi(pingjun):
-    # img = cv2.imread('./img/clock_re.png')
-    # imgh = img[0:165,6:171]
-
     # 读取excle中数据
     cts = get_cts()
     cdus = cts[0]
@@ -210,33 +185,17 @@ def get_shishi(pingjun):
         pd = 1
         imgh = cv2.imread('frame.jpg')
         thr = get_averg(imgh,pingjun)
-        thr = thr - 180
-        print(thr)
-        # 实物算法
-        if thr > 0 and thr <= 60:
-            fdu =  (5/3) * thr + 450
-        elif thr >= 120 and thr < 360:
-            fdu =  (5/3) * thr - 150
+        print(f'识别的角度值为{thr}')
+        # 实物指针度数转化为温度度数
+        if thr > 0 and thr <= 45:
+            cdu = (4/9) * thr + 100
+        elif thr >= 135 and thr < 360:
+            cdu = (4/9) * thr - 60
         else :
-            fdu = 0
+            cdu = 'error'
             pd = 0
 
-        if fdu == 0 :
-            cdu = 'error'
-        else :
-            cdu = (fdu - 32) * 5 /9
-        print(cdu)
-
-        # 实验室表算法
-        # if thr > 0 and thr <= 45:
-        #     cdu = thr / 2.25 + 100
-        #     pd = 1
-        # elif thr >= 135 and thr <= 360:
-        #     cdu = (thr - 135) / 2.25
-        #     pd = 1
-        # else:
-        #     cdu = '测试故障'
-        #     pd = 0
+        print(f'转化为温度值{cdu}')
         cdus.append(str(cdu))
         timed = time.strftime("%H:%M:%S", time.localtime())
         timeds.append(timed)
@@ -244,10 +203,7 @@ def get_shishi(pingjun):
         # 保存数据
         save_xlsx(thr,cdu,timed)
 
-
-        # plotly 数据可视化 美观，可是不会动态
-        # 在线的话用iplot
-        # chart_studio.tools.set_credentials_file(username='yq010105', api_key='vFAO4qfvSSaL2yHTEJ6g')
+        # plotly 数据可视化
         data = []
         if pd == 1 :
             cdu1 = round(cdu ,1)
@@ -292,7 +248,6 @@ def get_shishi(pingjun):
                            )
         fig = go.Figure(data=data, layout=layout)
         ptly.plot(fig, filename='ssdata.html')
-        # ptly.iplot(fig)
         time.sleep(3)
         continue
 
